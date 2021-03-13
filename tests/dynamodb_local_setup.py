@@ -1,5 +1,8 @@
 import boto3
 
+dynamoLocation = 'Local'
+# dynamoLocation = 'Remote'
+
 def create_comments_table(dynamodb, table_name):
     table = dynamodb.create_table(
         TableName=table_name,
@@ -31,6 +34,28 @@ def create_comments_table(dynamodb, table_name):
     )
     return table
 
+def create_customer_table(dynamodb, table_name):
+    table = dynamodb.create_table(
+        TableName=table_name,
+        KeySchema=[
+            {
+                'AttributeName': 'customer',
+                'KeyType': 'HASH'  # Partition key
+            }
+        ],
+        AttributeDefinitions=[
+            {
+                'AttributeName': 'customer',
+                'AttributeType': 'S'
+            },
+
+        ],
+        ProvisionedThroughput={
+            'ReadCapacityUnits': 10,
+            'WriteCapacityUnits': 10
+        }
+    )
+    return table
 
 def put_comments(dynamodb, table_name):
 
@@ -94,18 +119,39 @@ def clear_comments(dynamodb, table_name):
     else:
         return response
 
+def clear_customers(dynamodb, table_name):
+    try:
+        customers_table = dynamodb.Table(table_name)
+        response = customers_table.scan()
+        for x in response['Items']:
+            cust = x['customer']
+            response = customers_table.delete_item(
+                    Key={
+                        'customer': cust
+                    }
+            )
+    except:
+        raise
+    else:
+        return response
 
-def check_comments_table(dynamodb, table_name):
+
+def check_table(dynamodb, table_name):
     table = dynamodb.list_tables()
     if (table_name in table['TableNames']):
         return True
     else:
         return False
 
-def set_up_tests():
-    dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
-    dynamodbclient = boto3.client('dynamodb', endpoint_url="http://localhost:8000")
-    if (check_comments_table(dynamodbclient, 'blogComments') == False):
+def set_up_comments():
+    if dynamoLocation == 'Local':
+        dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
+        dynamodbclient = boto3.client('dynamodb', endpoint_url="http://localhost:8000")
+    else:
+        dynamodb = boto3.resource('dynamodb')
+        dynamodbclient = boto3.client('dynamodb')
+
+    if (check_table(dynamodbclient, 'blogComments') == False):
         comments_table = create_comments_table(dynamodb, 'blogComments')
         print("Table status:", comments_table.table_status)
         
@@ -119,5 +165,26 @@ def set_up_tests():
     print(get_comments(dynamodb,'blogComments'))
     return dynamodb
 
+def set_up_customer():
+    tbl_name = 'blogCustomer'
+    if dynamoLocation == 'Local':
+        dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
+        dynamodbclient = boto3.client('dynamodb', endpoint_url="http://localhost:8000")
+    else:
+        dynamodb = boto3.resource('dynamodb')
+        dynamodbclient = boto3.client('dynamodb')
+
+    if (check_table(dynamodbclient, tbl_name) == False):
+        
+        create_customer_table(dynamodb, tbl_name)
+        print("Table created")
+        
+    else:
+        print("customer table already created")
+    
+    clear_customers(dynamodb, tbl_name)
+    return dynamodb
+
 if __name__ == '__main__':
-    set_up_tests()
+    set_up_comments()
+    set_up_customer()
