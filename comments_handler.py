@@ -5,6 +5,51 @@ import uuid
 import os
 import hashlib
 from base64 import b64encode
+import json
+
+def handler(event, context):
+    try:
+        action = event['requestContext']['http']['path'].split('/')[-1:][0]
+        method = event['requestContext']['http']['method']
+            
+        if action == 'comments':
+            if method == 'GET':
+                customerId = event['queryStringParameters']['customer']
+                pageId = event['queryStringParameters']['pageId']
+                cts = Comments()
+                if context['invoked_function_arn'] == 'localtest':
+                    cts = Comments(boto3.resource('dynamodb', endpoint_url="http://localhost:8000"))
+                comments = c.get_approved_comments(customerId, pageId)
+                return {'statusCode': 200,'headers': {'Content-Type': 'text/html'},'body': comments}
+                        
+            elif method == 'POST':
+                body = json.loads(event['body'])
+                action = body['action']
+                if action == 'new':
+                    customer = body.get('customer')
+                    pageId = body.get('pageId')
+                    author = body.get('author', 'Anon')
+                    comment = body.get('comment')
+                    if (customer == None or pageId ==None or comment ==None):
+                        raise 'Missing, customer, pageId or comment'
+                    cts = Comments()
+                    if context['invoked_function_arn'] == 'localtest':
+                        cts = Comments(boto3.resource('dynamodb', endpoint_url="http://localhost:8000"))
+                    new_comment_id = False
+                    new_comment_id = cts.add_new_comment(customer,pageId,author,comment)                    
+                    if new_comment_id:
+                        #comment saved sucessfully
+                        return {'statusCode': 200,'headers': {'Content-Type': 'text/html'},'body': comment}
+                    else:
+                        return {'statusCode': 500,'headers': {'Content-Type': 'text/html'},'body': comment}
+
+
+    except Exception as e:
+        return {'statusCode': 500,'headers': {'Content-Type': 'text/html'},'body': 'Error during processing' + str(e)}
+
+        
+
+
 
 class Comments:
     dynamodb = ''
@@ -64,14 +109,24 @@ class Comments:
         try:
             comments_table = self.dynamodb.Table(config.COMMENTS_TABLE_NAME)
             comments = self._get_comment_by_status(customer,pageId,'all')
-            #add in new comment
             new_commentId = uuid.uuid4().hex
-            comments.append({
-                "status": "pending",
-                "text": comment_text,
-                "author" :author,
-                "commentId": new_commentId
-            })
+            new_item = {"status": "pending", "text": comment_text,"author" :author,"commentId": new_commentId}
+            #is there a pending comment for the same customer, pageId,author combo?
+            existing_comments = list(filter(
+                                    lambda x: (
+                                        x.get('status', 'pending') == 'pending' and 
+                                        x.get('author','Anon') == author), 
+                                        comments))
+            if len(existing_comments )> 1:
+                raise 'more than 1 existing commment for given author'
+            if len(existing_comments) == 1:
+                #replace the comment
+                for index, item in enumerate(comments):
+                    if (item.get('status', 'pending') == 'pending' and item.get('author','Anon') == author):
+                        comments[index] = new_item
+            else:
+                #add in new comment
+                comments.append(new_item)
             response = comments_table.update_item(
                 Key={
                     'customer': customer,
@@ -84,8 +139,8 @@ class Comments:
                 ReturnValues="UPDATED_NEW"
             )
 
-        except:
-            raise
+        except Exception as e:
+            raise e
         else:
             if (response['ResponseMetadata']['HTTPStatusCode'] == 200):
                 return new_commentId

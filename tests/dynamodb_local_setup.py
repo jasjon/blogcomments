@@ -1,4 +1,8 @@
+import os
 import boto3
+import hashlib
+from boto3.dynamodb.types import Binary
+import testConfig
 
 dynamoLocation = 'Local'
 # dynamoLocation = 'Remote'
@@ -62,8 +66,8 @@ def put_comments(dynamodb, table_name):
     table = dynamodb.Table(table_name)
     response = table.put_item(
        Item={
-            "customer": "pauserun_test",
-            "pageId": "AWS-Hammer",
+            "customer": testConfig.CUSTOMER,
+            "pageId": testConfig.PAGEID,
             "comments": [
             {
             "status": "approved",
@@ -94,7 +98,7 @@ def put_comments(dynamodb, table_name):
 def get_comments(dynamodb, table_name):
     try:
         comments_table = dynamodb.Table(table_name)
-        comments = comments_table.get_item(Key={'customer': 'pauserun_test', 'pageId' : 'AWS-Hammer'})
+        comments = comments_table.get_item(Key={'customer': testConfig.CUSTOMER, 'pageId' : testConfig.PAGEID})
         if 'Item' in  comments:
             return comments['Item']['comments']
         else:
@@ -107,8 +111,8 @@ def clear_comments(dynamodb, table_name):
         comments_table = dynamodb.Table(table_name)
         response = comments_table.delete_item(
             Key={
-                'customer': 'pauserun_test', 
-                'pageId' : 'AWS-Hammer'
+                'customer': testConfig.CUSTOMER, 
+                'pageId' : testConfig.PAGEID
             }
         )
     except ClientError as e:
@@ -165,7 +169,7 @@ def set_up_comments():
     print(get_comments(dynamodb,'blogComments'))
     return dynamodb
 
-def set_up_customer():
+def set_up_customer(addCustomer = False):
     tbl_name = 'blogCustomer'
     if dynamoLocation == 'Local':
         dynamodb = boto3.resource('dynamodb', endpoint_url="http://localhost:8000")
@@ -183,6 +187,20 @@ def set_up_customer():
         print("customer table already created")
     
     clear_customers(dynamodb, tbl_name)
+    if addCustomer:
+        customer = testConfig.CUSTOMER
+        salt = os.urandom(32)
+        key = hashlib.pbkdf2_hmac('sha256',testConfig.CUSTOMER_PW.encode('utf-8'),salt, 100000)
+        try:
+            customer_table = dynamodb.Table(tbl_name)
+            response = customer_table.put_item(
+                Item={
+                    "customer": customer,
+                    "key": Binary(key), 
+                    "salt": Binary(salt)
+                })
+        except:
+            raise
     return dynamodb
 
 if __name__ == '__main__':

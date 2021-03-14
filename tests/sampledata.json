@@ -1,0 +1,10 @@
+{'version': '2.0', 'routeKey': 'GET /comments', 'rawPath': '/prod/comments', 'rawQueryString': 'customer=rigur',
+'headers': {'accept': '*/*', 'accept-encoding': 'gzip, deflate, br', 'cache-control': 'no-cache', 'content-length': '0',
+'host': 'a490war5g1.execute-api.eu-west-1.amazonaws.com', 'postman-token': 'da3cfdb2-a395-4636-a8f8-6923e937227d',
+'user-agent': 'PostmanRuntime/7.26.10', 'x-amzn-trace-id': 'Root=1-604cb0d0-311668de7bf5ef471fbd282f',
+'x-forwarded-for': '86.12.192.198', 'x-forwarded-port': '443', 'x-forwarded-proto': 'https'}, 'queryStringParameters':
+{'customer': 'rigur'}, 'requestContext': {'accountId': '428972862868', 'apiId': 'a490war5g1', 'domainName':
+'a490war5g1.execute-api.eu-west-1.amazonaws.com', 'domainPrefix': 'a490war5g1', 'http': {'method': 'GET', 'path':
+'/prod/comments', 'protocol': 'HTTP/1.1', 'sourceIp': '86.12.192.198', 'userAgent': 'PostmanRuntime/7.26.10'},
+'requestId': 'cICQlhexDoEEP3Q=', 'routeKey': 'GET /comments', 'stage': 'prod', 'time': '13/Mar/2021:12:32:16 +0000',
+'timeEpoch': 1615638736410}, 'isBase64Encoded': False}
