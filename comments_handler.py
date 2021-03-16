@@ -17,10 +17,10 @@ def handler(event, context):
                 customerId = event['queryStringParameters']['customer']
                 pageId = event['queryStringParameters']['pageId']
                 cts = Comments()
-                if context['invoked_function_arn'] == 'localtest':
+                if context.invoked_function_arn == 'local':
                     cts = Comments(boto3.resource('dynamodb', endpoint_url="http://localhost:8000"))
-                comments = c.get_approved_comments(customerId, pageId)
-                return {'statusCode': 200,'headers': {'Content-Type': 'text/html'},'body': comments}
+                comments = cts.get_approved_comments(customerId, pageId)
+                return {'statusCode': 200,'headers': {'Content-Type': 'text/html'},'body': json.dumps(comments)}
                         
             elif method == 'POST':
                 body = json.loads(event['body'])
@@ -33,16 +33,29 @@ def handler(event, context):
                     if (customer == None or pageId ==None or comment ==None):
                         raise 'Missing, customer, pageId or comment'
                     cts = Comments()
-                    if context['invoked_function_arn'] == 'localtest':
+                    if context.invoked_function_arn == 'local':
                         cts = Comments(boto3.resource('dynamodb', endpoint_url="http://localhost:8000"))
                     new_comment_id = False
                     new_comment_id = cts.add_new_comment(customer,pageId,author,comment)                    
                     if new_comment_id:
                         #comment saved sucessfully
-                        return {'statusCode': 200,'headers': {'Content-Type': 'text/html'},'body': comment}
+                        return {'statusCode': 200,'headers': {'Content-Type': 'text/html'},'body': json.dumps(comment)}
                     else:
-                        return {'statusCode': 500,'headers': {'Content-Type': 'text/html'},'body': comment}
+                        return {'statusCode': 500,'headers': {'Content-Type': 'text/html'},'body': json.dumps(comment)}
+        elif action =='pending':
+            customerId = event['queryStringParameters']['customer']
+            pageId = event['queryStringParameters']['pageId']
+            customerPW = event['queryStringParameters']['pw']
+            cts = Comments()
+            if context.invoked_function_arn == 'local':
+                cts = Comments(boto3.resource('dynamodb', endpoint_url="http://localhost:8000"))
+            comments, passwordOK = cts.get_pending_comments(customerId, customerPW, pageId)
+            statusCode = 401 #unauthorised
+            if passwordOK:
+                statusCode = 200
+            return {'statusCode': statusCode,'headers': {'Content-Type': 'text/html'},'body': json.dumps(comments)}
 
+                
 
     except Exception as e:
         return {'statusCode': 500,'headers': {'Content-Type': 'text/html'},'body': 'Error during processing' + str(e)}
@@ -87,9 +100,9 @@ class Comments:
     def get_pending_comments(self, customer, customer_password, pageId):
         cust = Customer(self.dynamodb)
         if cust.validate_customer_password(customer, customer_password):
-            return self._get_comment_by_status(customer,pageId,'pending')
+            return self._get_comment_by_status(customer,pageId,'pending'), True
         else:
-            return []
+            return [], False
 
     def get_rejected_comments(self, customer, customer_password,pageId):
         cust = Customer(self.dynamodb)

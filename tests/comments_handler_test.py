@@ -82,7 +82,7 @@ class Test_Comments:
         assert (len(comments) ==  2)
 
     def test_status_pending(self):
-        comments = self.cts.get_pending_comments(self.customer, self.customer_password, self.pageId)
+        comments,passwordOK = self.cts.get_pending_comments(self.customer, self.customer_password, self.pageId)
         assert (len(comments) ==  1)
 
     def test_status_rejected(self):
